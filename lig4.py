@@ -1,17 +1,18 @@
 from tkinter import *
+from animator import *
 from game import *
 
 root = Tk()
 bttFrame = Frame(root)
 bttFrame.grid()
 
-lig4 = Game()
-lig4.initSlot()
 
 canvasFrame = Frame(root)
 canvasFrame.grid(column=0, row=1)
 canv = Canvas(canvasFrame, width=700, height=600, bg="white")
 canv.grid(column=0, row=1)
+
+game = Game(canv, root)
 
 for l in range(7):
     f = Frame(bttFrame, height=32, width=100)
@@ -21,8 +22,7 @@ for l in range(7):
     btt.place(x=0, y=0, relheight=1, relwidth=1)
 
     def bttFunc(event, l=l):
-        if(not lig4.animating):
-            lig4.placeInSlot(l, canv, root, 600)
+        game.placeInSlot(l)
 
     btt.bind("<ButtonPress>", bttFunc)
 
