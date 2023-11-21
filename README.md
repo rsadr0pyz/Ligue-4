@@ -1,7 +1,7 @@
 # PROJETO EM DESENVOLVIMENTO
 
 ## Ligue-4
-* O clásico jogo de tabuleiro. Vence quem alinhar 4 peças primeiro.
+* O clássico jogo de tabuleiro. Vence quem alinhar 4 peças primeiro.
 * Desenvolvido pelos alunos de Eng. Comp. da UFES, Artur, Rafael e Heitor, para a disciplina PIC-I (Projeto Integrado de Computação-I).
 
 ## Sobre o jogo
