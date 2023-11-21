@@ -1,81 +1,6 @@
-#include <ESP8266WiFi.h>
-#include <PubSubClient.h>
-
-// Update these with values suitable for your network.
-// ###################### Trocar aqui!!! ##################### 
-const char* ssid = "PIC2-2.4G";
-const char* password = "engcomp@ufes";
-//Free mqtt server for testing
-const char* mqtt_server = "broker.mqtt-dashboard.com";
-//Local MQTT server - Tested using mosquitto mqtt for windows and linux
-//const char* mqtt_server = "192.168.137.1";
-
-WiFiClient espClient;
-PubSubClient client(espClient);
-long lastMsg = 0;
-char msg[50];
-int value = 0;
-
-void setup_wifi() {
-  delay(10);
-  
-  // We start by connecting to a WiFi network
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-  }
-
-  randomSeed(micros());
-
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-}
-
-
-void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
-}
-
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Create a random client ID
-    String clientId = "ESP8266Client-";
-    clientId += String(random(0xffff), HEX);
-    // Attempt to connect
-    if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-      client.publish("Ligue4PIC", "de quatro!!");
-    } 
-    else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
-}
-
-void loop() {
+/* void loop() {
   if (!client.connected()) {
-     reconnect();
+     Reconectar();
   }
   client.loop();
 
@@ -88,8 +13,34 @@ void loop() {
     Serial.println(msg);
     client.publish("Ligue4PIC", msg);
   }
-}
+} */
 
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+
+
+//WIFI
+#define WIFI_SSID "PIC2-2.4G"
+#define WIFI_SENHA "engcomp@ufes"
+
+void ConectarNoWifi();
+
+
+
+//MQTT
+#define MQTT_SERVIDOR "broker.mqtt-dashboard.com"
+#define TOPICO_GRAFICOS "PIC_LIGUE_4:GRAFICOS"
+#define TOPICO_JOGO "PIC_LIGUE_4:JOGO"
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void RecebeInfo(char* topic, byte* payload, unsigned int length);
+void ReconectarBroker();
+
+
+
+//LIGUE 4
 #define MAXLIN 6
 #define MAXCOL 7
 #define VAZIO ' '
@@ -98,63 +49,157 @@ void loop() {
 #define PAREDE '|'
 #define BASE '='
 
+char tabuleiro[MAXLIN][MAXCOL];
+int nJogadas = MAXLIN*MAXCOL;
+char jogador = JOGADOR1;
+
+enum EstadoJogo{
+  FIM_DE_JOGO = 1,
+  JOGADA_VALIDA = 0,
+  JOGADA_INVALIDA = -1
+};
+
 void InicializaTabuleiro(char [MAXLIN][MAXCOL]);
 void ImprimeTabuleiro(char [MAXLIN][MAXCOL]);
 int JogadaValida(char [MAXLIN][MAXCOL], int col);
 void InsereJogada(char [MAXLIN][MAXCOL], int col, char jogador);
-int FazJogada(char [MAXLIN][MAXCOL], char);
+EstadoJogo FazJogada(char [MAXLIN][MAXCOL], char);
 int GanhouJogo(char [MAXLIN][MAXCOL], int);
 int QuantosNaDirecao(char [MAXLIN][MAXCOL], int, int, int, int, char);
 
-char tabuleiro[MAXLIN][MAXCOL];
-int nJogadas = MAXLIN*MAXCOL;
+
+
+//IMPLEMENTAÇÃO DAS FUNÇÕES
 
 void setup(){
-  InicializaTabuleiro(tabuleiro);
   Serial.begin(9600);
-  setup_wifi();
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
+
+  InicializaTabuleiro(tabuleiro);
+
+  ConectarNoWifi();
+
+  client.setServer(MQTT_SERVIDOR, 1883);
+  client.setCallback(RecebeInfo);
 }
 
-char jogador = JOGADOR1;
-/* void loop(){
 
-  
-  if(Serial.available()>0){
-    int acabouJogo = FazJogada(tabuleiro,jogador);
-    nJogadas--;
+void loop(){
 
-    if(acabouJogo){
-      Serial.print("JOGADOR ");
-      Serial.print(jogador);
-      Serial.println(" VENCEU");
-      delay(10000);
-    }
-    else if(!nJogadas){
-      Serial.print("EMPATE!");
-      delay(10000);
-    }
-
-    if(jogador==JOGADOR1) jogador=JOGADOR2;
-    else jogador=JOGADOR1;
-
-    //Serial.println("CORINTHIANS");
+  if (!client.connected()) {
+     ReconectarBroker();
   }
-  
-} */
+  client.loop();
 
+  EstadoJogo estadoJogo = FazJogada(tabuleiro,jogador);
+
+  if(estadoJogo == JOGADA_INVALIDA) return;
+
+  if(estadoJogo == FIM_DE_JOGO){
+    Serial.print("JOGADOR ");
+    Serial.print(jogador);
+    Serial.println(" VENCEU");
+    client.publish(TOPICO_JOGO, "FIM DE JOGO!");
+    delay(10000);
+  }
+  else if(!nJogadas){
+    Serial.print("EMPATE!");
+    delay(10000);
+  }
+
+  if(jogador==JOGADOR1) jogador=JOGADOR2;
+  else jogador=JOGADOR1;
+  //Serial.println("CORINTHIANS");
+  
+}
+
+
+
+
+//WIFI
+
+void ConectarNoWifi() {
+
+  delay(10);
+
+  Serial.println();
+  Serial.print("Conectando em ");
+  Serial.println(WIFI_SSID);
+
+  WiFi.begin(WIFI_SSID, WIFI_SENHA);
+
+  while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+  }
+
+  randomSeed(micros());
+
+  Serial.println("");
+  Serial.println("WiFi conectado!");
+
+}
+
+
+
+
+//MQTT
+
+void RecebeInfo(char* topic, byte* payload, unsigned int length) {
+
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+
+}
+
+
+void ReconectarBroker() {
+
+  while (!client.connected()) {
+    Serial.print("Tentando Conexão");
+    
+    //Cria um clientId aleatório
+    String clientId = "Ligue4Client-";
+    clientId += String(random(0xffff), HEX);
+
+    if (client.connect(clientId.c_str())) {
+      Serial.println("Conectado");
+      client.publish("Ligue4PIC", "de quatro!!");
+    } 
+    else {
+      Serial.print("falha na conexão, rc=");
+      Serial.print(client.state());
+      Serial.println("Tentando novamente em 5 segundos");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+
+}
+
+
+
+
+//LIGUE 4
 
 void InicializaTabuleiro(char tabuleiro[MAXLIN][MAXCOL]){
+
   int i,j;
   for(i=0;i<MAXLIN;i++){
     for(j=0;j<MAXCOL;j++){
         tabuleiro[i][j]=VAZIO;
     }
   }
+
 }
 
+
 void ImprimeTabuleiro(char tabuleiro[MAXLIN][MAXCOL]){
+
     int i,j;
     for(i=0;i<MAXLIN;i++){
         Serial.print(PAREDE);
@@ -164,15 +209,21 @@ void ImprimeTabuleiro(char tabuleiro[MAXLIN][MAXCOL]){
         Serial.println(PAREDE);
     }
     for(i=0;i<9;i++) Serial.print(BASE); Serial.println("");
+
 }
 
+
 int JogadaValida(char tabuleiro[MAXLIN][MAXCOL],int col){
+
     return (col>=0 &&
             col<MAXCOL &&
             tabuleiro[0][col]==VAZIO);
+
 }
 
+
 void InsereJogada(char tabuleiro[MAXLIN][MAXCOL],int col,char jogador){
+
     int i,j;
     for(i=MAXLIN-1;i>=0;i--){
         if(tabuleiro[i][col]==VAZIO){
@@ -180,28 +231,39 @@ void InsereJogada(char tabuleiro[MAXLIN][MAXCOL],int col,char jogador){
             break;
         }
     }
+
 }
 
-int FazJogada(char tabuleiro[MAXLIN][MAXCOL],char jogador){
-    int coluna;
 
-    while(1){
-      coluna=Serial.read();
-      coluna-='0';
-      coluna--;
-      delay(1);
+EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL],char jogador){
 
-      if(JogadaValida(tabuleiro,coluna)) break;
+    if(Serial.available() < 1) return JOGADA_INVALIDA;
+    
+    int coluna = Serial.read();
+    coluna-='0';
+    coluna--;
+
+    if(JogadaValida(tabuleiro,coluna)){
+
+      nJogadas--;
+      InsereJogada(tabuleiro,coluna,jogador);
+
+      ImprimeTabuleiro(tabuleiro);
+
+      //Inverte Jogador
+
+      if(GanhouJogo(tabuleiro,coluna)){
+        return FIM_DE_JOGO;
+      }else return JOGADA_VALIDA;
+
     }
-   
-    InsereJogada(tabuleiro,coluna,jogador);
+    else return JOGADA_INVALIDA;
 
-    ImprimeTabuleiro(tabuleiro);
-
-    return GanhouJogo(tabuleiro,coluna);
 }
+
 
 int GanhouJogo(char tabuleiro[MAXLIN][MAXCOL],int coluna){
+
     int i;
     char peca;
     //acha peça
@@ -237,9 +299,12 @@ int GanhouJogo(char tabuleiro[MAXLIN][MAXCOL],int coluna){
     if(count>=4)return 1;
 
     return 0;
+
 }
 
+
 int QuantosNaDirecao(char tabuleiro[MAXLIN][MAXCOL], int deltaI, int deltaJ, int posI, int posJ, char jogador){
+
     int i,j, count = 0, reverse = 0;
     for(i=0, j=0;; i+=deltaI, j+=deltaJ){
 
@@ -258,4 +323,5 @@ int QuantosNaDirecao(char tabuleiro[MAXLIN][MAXCOL], int deltaI, int deltaJ, int
             count++;
         }
     }
+    
 }
