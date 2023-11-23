@@ -17,6 +17,8 @@
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include <stdio.h>
+#include <string.h>
 
 
 //WIFI
@@ -244,6 +246,7 @@ EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL],char jogador){
     coluna--;
 
     if(JogadaValida(tabuleiro,coluna)){
+      EnviaDados(jogador, tabuleiro, coluna);
 
       nJogadas--;
       InsereJogada(tabuleiro,coluna,jogador);
@@ -324,4 +327,19 @@ int QuantosNaDirecao(char tabuleiro[MAXLIN][MAXCOL], int deltaI, int deltaJ, int
         }
     }
     
+}
+
+void EnviaDados(char jogador, char tabuleiro[MAXLIN][MAXCOL], int coluna){
+  char dados[47];
+
+  sprintf(dados, "J");
+
+  for(int i=0; i<MAXLIN; i++){
+    for(int j=0; j<MAXCOL; j++){
+      sprintf(dados, "%s%c", dados, tabuleiro[i][j]);
+    }
+  }
+  sprintf(dados, "%s;%d%c", dados, coluna, jogador);
+
+  client.publish(TOPICO_JOGO, dados);
 }
