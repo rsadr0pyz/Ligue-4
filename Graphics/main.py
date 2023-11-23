@@ -1,19 +1,74 @@
 from tkinter import *
 from animator import *
+from math import *
 from game import *
 import paho.mqtt.client as mqtt
+import threading
 
 root = Tk()
-bttFrame = Frame(root)
-bttFrame.grid()
+canvasFrame = Frame(root)
+canvasFrame.grid(column=0, row=0)
+canv = Canvas(canvasFrame, width=700, height=600, bg="white")
+canv.grid(column=0, row=0)
+
+animator = Animator(canv, root)
+
+
+def thread_function(name):
+  client.loop_forever()
 
 
 def on_message(client, userdata, msg):
+  msg.payload = msg.payload.decode("utf-8")
   print(msg.topic + " " + str(msg.payload))
+  data = str(msg.payload)
+  tipo = data[0]
+  slots = []
+  nmbCol = 7
+  nbmLin = 6
+  if (tipo == 'J'):
+    i = 1
+    while (data[i] != ';'):
+      actCol = (i - 1) % nmbCol
+      actLin = floor((i - 1) / nmbCol)
+      if (actCol == 0):
+        slots.append([])
+        print(slots)
+        print(actCol)
+        print(actLin)
+
+      if (data[i] == 'X'):
+        slots[actLin][actCol] = SlotStates.P1
+      elif data[i] == 'O':
+        slots[actLin][actCol] = SlotStates.P2
+      else:
+        slots[actLin][actCol] = SlotStates.EMPTY
+      i += 1
+
+    i += 1
+    col = int(data[i])
+    actualPlayer = SlotStates.EMPTY
+    actualPlayerData = data[i + 1]
+
+    if (actualPlayerData == 'X'):
+      actualPlayer = SlotStates.P1
+    elif (actualPlayerData == 'O'):
+      actualPlayer = SlotStates.P2
+
+    animator.drawCanvas(slots)
+    endY = 0
+    for i in range(5, -1, -1):
+      if (slots[i][col] == SlotStates.EMPTY):
+        slots[i][col] = actualPlayer
+        endY = i
+        break
+    animator.animatePlacement(col, endY, 600, actualPlayer)
 
 
 def on_connect(client, userdata, flags, rc):
-  print("Connected with result code " + str(rc))
+  print("CONECTADO (" + str(rc) + ")")
+
+
 
 
 print("CONECTANDO")
@@ -23,25 +78,7 @@ client.on_connect = on_connect
 client.connect("broker.mqtt-dashboard.com", 1883, 60)
 client.subscribe("PIC_LIGUE_4:JOGO")
 
-client.loop_forever()
-
-canvasFrame = Frame(root)
-canvasFrame.grid(column=0, row=1)
-canv = Canvas(canvasFrame, width=700, height=600, bg="white")
-canv.grid(column=0, row=1)
-
-game = Game(canv, root)
-
-for l in range(7):
-  f = Frame(bttFrame, height=32, width=100)
-  f.grid(row=0, column=l)
-
-  btt = Button(f, text="O", padx=0, width=1)
-  btt.place(x=0, y=0, relheight=1, relwidth=1)
-
-  def bttFunc(event, l=l):
-    game.placeInSlot(l)
-
-  btt.bind("<ButtonPress>", bttFunc)
+x = threading.Thread(target=thread_function, args=(client,))
+x.start()
 
 root.mainloop()
