@@ -15,6 +15,11 @@
   }
 } */
 
+// HARDWARE
+#define B_ESQUERDA 1
+#define B_DIREITA 2
+#define B_JOGA 3
+
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <stdio.h>
@@ -52,9 +57,8 @@ int nJogadas = MAXLIN * MAXCOL;
 char jogador = JOGADOR1;
 
 enum EstadoJogo{
-  FIM_DE_JOGO = 1,
-  JOGADA_VALIDA = 0,
-  JOGADA_INVALIDA = -1
+  JOGADA = 0,
+  FIM_DE_JOGO = 1
 };
 
 void InicializaTabuleiro(char [MAXLIN][MAXCOL]);
@@ -78,8 +82,15 @@ void setup(){
 
   client.setServer(MQTT_SERVIDOR, 1883);
   client.setCallback(RecebeInfo);
+
+  pinMode(B_DIREITA, input);
+  pinMode(B_ESQUERDA, input);
+  pinMode(B_JOGA, input);
 }
 
+int inputJogar = 0;
+int inputEsquerda = 0;
+int inputDireita = 0;
 
 void loop(){
 
@@ -88,9 +99,9 @@ void loop(){
   }
   client.loop();
 
-  EstadoJogo estadoJogo = FazJogada(tabuleiro,jogador);
+  
 
-  if(estadoJogo == JOGADA_INVALIDA) return;
+  EstadoJogo estadoJogo = FazJogada(tabuleiro,jogador);
 
   if(estadoJogo == FIM_DE_JOGO){
     char envio[] = {'F', jogador, '\0'};
@@ -101,10 +112,6 @@ void loop(){
     client.publish(TOPICO_JOGO, envio);
     delay(10000);
     InicializaTabuleiro(tabuleiro);
-    
-    
-
-
   }
   else if(!nJogadas){
     Serial.print("EMPATE!");
@@ -240,30 +247,17 @@ void InsereJogada(char tabuleiro[MAXLIN][MAXCOL],int col,char jogador){
 }
 
 
-EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL],char jogador){
+EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL],char jogador, int coluna){
+    EnviaDados(jogador, tabuleiro, coluna);
 
-    if(Serial.available() < 1) return JOGADA_INVALIDA;
-    
-    int coluna = Serial.read();
-    coluna-='0';
-    coluna--;
+    nJogadas--;
+    InsereJogada(tabuleiro,coluna,jogador);
 
-    if(JogadaValida(tabuleiro,coluna)){
-      EnviaDados(jogador, tabuleiro, coluna);
+    ImprimeTabuleiro(tabuleiro);
 
-      nJogadas--;
-      InsereJogada(tabuleiro,coluna,jogador);
-
-      ImprimeTabuleiro(tabuleiro);
-
-      //Inverte Jogador
-
-      if(GanhouJogo(tabuleiro,coluna)){
-        return FIM_DE_JOGO;
-      }else return JOGADA_VALIDA;
-
-    }
-    else return JOGADA_INVALIDA;
+    if(GanhouJogo(tabuleiro,coluna)){
+      return FIM_DE_JOGO;
+    }else return JOGADA;
 
 }
 
