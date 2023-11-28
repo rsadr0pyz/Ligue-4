@@ -5,8 +5,20 @@ import paho.mqtt.client as mqtt
 import threading
 
 root = Tk()
+logFrame = Frame(root)
+logFrame.grid(column=0, row=0)
+indicFrame = Frame(root)
+indicFrame.grid(column=0, row=1)
+
+indicadores = []
+for i in range(7):
+  l = Frame(indicFrame, bg="gray", width=100, height=20)
+  l.grid(column=i, row=0)
+  indicadores.append(l)
+
+
 canvasFrame = Frame(root)
-canvasFrame.grid(column=0, row=0)
+canvasFrame.grid(column=0, row=2)
 canv = Canvas(canvasFrame, width=700, height=600, bg="white")
 canv.grid(column=0, row=0)
 
@@ -19,7 +31,7 @@ def thread_function(name):
 
 def on_message(client, userdata, msg):
   msg.payload = msg.payload.decode("utf-8")
-  print(msg.topic + " " + str(msg.payload))
+  print(msg.topic + " " + str(msg.payload) + "\n")
   data = str(msg.payload)
   tipo = data[0]
   slots = []
@@ -32,10 +44,6 @@ def on_message(client, userdata, msg):
       actLin = floor((i - 1) / nmbCol)
       if (actCol == 0):
         slots.append([])
-        print(slots)
-        print(actCol)
-        print(actLin)
-
       if (data[i] == 'X'):
         slots[actLin].insert(actCol, SlotStates.P1)
       elif data[i] == 'O':
@@ -49,7 +57,7 @@ def on_message(client, userdata, msg):
     col = int(data[i])
     actualPlayer = SlotStates.EMPTY
     actualPlayerData = data[i + 1]
-
+    
     if (actualPlayerData == 'X'):
       actualPlayer = SlotStates.P1
     elif (actualPlayerData == 'O'):
@@ -66,9 +74,13 @@ def on_message(client, userdata, msg):
     
   elif(tipo == 'F'):
     jogador = data[1] 
-    T = Text(root=root, bg="grey", fg="black")
-    l = Label(root, text = "Fact of the Day")
-    l.config(font =("Courier", 14))
+    #T = Text(root=root, bg="grey", fg="black")
+    cor = "vermelho"
+    if (jogador == 'O'):
+      cor = "azul"
+      
+    l = Label(logFrame, text = "Jogador "+cor+" venceu!!")
+    l.config(font =("Comic Sans", 14))
     l.grid(column= 0, row=0)
  
 

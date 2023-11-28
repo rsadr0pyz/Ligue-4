@@ -48,7 +48,7 @@ void ReconectarBroker();
 #define BASE '='
 
 char tabuleiro[MAXLIN][MAXCOL];
-int nJogadas = MAXLIN*MAXCOL;
+int nJogadas = MAXLIN * MAXCOL;
 char jogador = JOGADOR1;
 
 enum EstadoJogo{
@@ -93,7 +93,7 @@ void loop(){
   if(estadoJogo == JOGADA_INVALIDA) return;
 
   if(estadoJogo == FIM_DE_JOGO){
-    char envio[] = {'F', jogador, ';', '\0'};
+    char envio[] = {'F', jogador, '\0'};
 
     Serial.print("JOGADOR ");
     Serial.print(jogador);
