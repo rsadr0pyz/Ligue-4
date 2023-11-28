@@ -18,18 +18,16 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <stdio.h>
-#include <string.h>
 
-
-//WIFI
-#define WIFI_SSID "PIC2-2.4G"
-#define WIFI_SENHA "engcomp@ufes"
+// WIFI
+#define WIFI_SSID "Artur's Galaxy A52s 5G"
+#define WIFI_SENHA "bffl3175"
 
 void ConectarNoWifi();
 
 
 
-//MQTT
+// MQTT
 #define MQTT_SERVIDOR "broker.mqtt-dashboard.com"
 #define TOPICO_GRAFICOS "PIC_LIGUE_4:GRAFICOS"
 #define TOPICO_JOGO "PIC_LIGUE_4:JOGO"
@@ -40,9 +38,7 @@ PubSubClient client(espClient);
 void RecebeInfo(char* topic, byte* payload, unsigned int length);
 void ReconectarBroker();
 
-
-
-//LIGUE 4
+// LIGUE 4
 #define MAXLIN 6
 #define MAXCOL 7
 #define VAZIO ' '
@@ -71,7 +67,7 @@ int QuantosNaDirecao(char [MAXLIN][MAXCOL], int, int, int, int, char);
 
 
 
-//IMPLEMENTAÇÃO DAS FUNÇÕES
+// IMPLEMENTAÇÃO DAS FUNÇÕES
 
 void setup(){
   Serial.begin(9600);
@@ -97,11 +93,18 @@ void loop(){
   if(estadoJogo == JOGADA_INVALIDA) return;
 
   if(estadoJogo == FIM_DE_JOGO){
+    char envio[] = {'F', jogador, ';', '\0'};
+
     Serial.print("JOGADOR ");
     Serial.print(jogador);
     Serial.println(" VENCEU");
-    client.publish(TOPICO_JOGO, "FIM DE JOGO!");
+    client.publish(TOPICO_JOGO, envio);
     delay(10000);
+    InicializaTabuleiro(tabuleiro);
+    
+    
+
+
   }
   else if(!nJogadas){
     Serial.print("EMPATE!");
@@ -110,14 +113,14 @@ void loop(){
 
   if(jogador==JOGADOR1) jogador=JOGADOR2;
   else jogador=JOGADOR1;
-  //Serial.println("CORINTHIANS");
+  // Serial.println("CORINTHIANS");
   
 }
 
 
 
 
-//WIFI
+// WIFI
 
 void ConectarNoWifi() {
 
@@ -144,7 +147,7 @@ void ConectarNoWifi() {
 
 
 
-//MQTT
+// MQTT
 
 void RecebeInfo(char* topic, byte* payload, unsigned int length) {
 
@@ -186,7 +189,7 @@ void ReconectarBroker() {
 
 
 
-//LIGUE 4
+// LIGUE 4
 
 void InicializaTabuleiro(char tabuleiro[MAXLIN][MAXCOL]){
 
@@ -263,7 +266,6 @@ EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL],char jogador){
     else return JOGADA_INVALIDA;
 
 }
-
 
 int GanhouJogo(char tabuleiro[MAXLIN][MAXCOL],int coluna){
 

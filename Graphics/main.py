@@ -1,7 +1,6 @@
 from tkinter import *
 from animator import *
 from math import *
-from game import *
 import paho.mqtt.client as mqtt
 import threading
 
@@ -38,12 +37,13 @@ def on_message(client, userdata, msg):
         print(actLin)
 
       if (data[i] == 'X'):
-        slots[actLin][actCol] = SlotStates.P1
+        slots[actLin].insert(actCol, SlotStates.P1)
       elif data[i] == 'O':
-        slots[actLin][actCol] = SlotStates.P2
+        slots[actLin].insert(actCol,SlotStates.P2)
       else:
-        slots[actLin][actCol] = SlotStates.EMPTY
+        slots[actLin].insert(actCol,SlotStates.EMPTY)
       i += 1
+  
 
     i += 1
     col = int(data[i])
@@ -59,10 +59,22 @@ def on_message(client, userdata, msg):
     endY = 0
     for i in range(5, -1, -1):
       if (slots[i][col] == SlotStates.EMPTY):
-        slots[i][col] = actualPlayer
+        slots[i].insert(col, actualPlayer)
         endY = i
         break
     animator.animatePlacement(col, endY, 600, actualPlayer)
+    
+  elif(tipo == 'F'):
+    jogador = data[1] 
+    T = Text(root=root, bg="grey", fg="black")
+    l = Label(root, text = "Fact of the Day")
+    l.config(font =("Courier", 14))
+    l.grid(column= 0, row=0)
+ 
+
+    
+
+    
 
 
 def on_connect(client, userdata, flags, rc):
