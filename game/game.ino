@@ -16,13 +16,15 @@
 } */
 
 // HARDWARE
-#define B_ESQUERDA 1
-#define B_DIREITA 2
-#define B_JOGA 3
-
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <stdio.h>
+#include <Button2.h>
+
+#define B_ESQUERDA 5  // d1
+#define B_DIREITA 4   // d2
+#define B_JOGA 14     // d5
+
 
 // WIFI
 #define WIFI_SSID "Artur's Galaxy A52s 5G"
@@ -51,57 +53,105 @@ void ReconectarBroker();
 #define JOGADOR2 'O'
 #define PAREDE '|'
 #define BASE '='
+#define CANALETA_INICIAL 3
+
+typedef enum{
+  JOGANDO = 0,
+  FIM_DE_JOGO = 1
+}EstadoJogo;
+
+typedef enum{
+  NADA,
+  JOGADA,
+  MOV_DIREITA,
+  MOV_ESQUERDA
+}TipoInput;
 
 char tabuleiro[MAXLIN][MAXCOL];
 int nJogadas = MAXLIN * MAXCOL;
+int canaleta = CANALETA_INICIAL;
 char jogador = JOGADOR1;
+TipoInput input = NADA;
 
-enum EstadoJogo{
-  JOGADA = 0,
-  FIM_DE_JOGO = 1
-};
 
 void InicializaTabuleiro(char [MAXLIN][MAXCOL]);
 void ImprimeTabuleiro(char [MAXLIN][MAXCOL]);
 int JogadaValida(char [MAXLIN][MAXCOL], int col);
 void InsereJogada(char [MAXLIN][MAXCOL], int col, char jogador);
-EstadoJogo FazJogada(char [MAXLIN][MAXCOL], char);
+EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL],char jogador, int coluna);
 int GanhouJogo(char [MAXLIN][MAXCOL], int);
 int QuantosNaDirecao(char [MAXLIN][MAXCOL], int, int, int, int, char);
+void botaoEsquerda(Button2& b);
+void botaoDireita(Button2& b);
+void botaoJogada(Button2& b);
 
 
 
 // IMPLEMENTAÇÃO DAS FUNÇÕES
 
+
+Button2 b1;
+Button2 b2;
+Button2 b3;
+
 void setup(){
   Serial.begin(9600);
+  Serial.print("JOGADOR ");
 
   InicializaTabuleiro(tabuleiro);
-
+  input = NADA;
   ConectarNoWifi();
 
   client.setServer(MQTT_SERVIDOR, 1883);
   client.setCallback(RecebeInfo);
 
-  pinMode(B_DIREITA, input);
-  pinMode(B_ESQUERDA, input);
-  pinMode(B_JOGA, input);
+  pinMode(B_DIREITA, INPUT);
+  pinMode(B_ESQUERDA, INPUT);
+  pinMode(B_JOGA, INPUT);
+
+  b1.begin(B_DIREITA, INPUT);
+  b2.begin(B_ESQUERDA, INPUT);
+  b3.begin(B_JOGA, INPUT);
+
+  b1.setPressedHandler(botaoDireita);
+  b2.setPressedHandler(botaoEsquerda);
+  b3.setPressedHandler(botaoJogada);
+
 }
 
-int inputJogar = 0;
-int inputEsquerda = 0;
-int inputDireita = 0;
 
 void loop(){
+  delay(2000);
 
   if (!client.connected()) {
      ReconectarBroker();
   }
   client.loop();
 
+  b1.loop();
+  b2.loop();
+  b3.loop();
+
   
 
-  EstadoJogo estadoJogo = FazJogada(tabuleiro,jogador);
+  if(input == MOV_ESQUERDA){
+    canaleta--;
+    if(canaleta<0) canaleta=6;
+    Serial.println(canaleta);
+    input = NADA;
+    return;
+  }else if(input == MOV_DIREITA){
+    canaleta++;
+    if(canaleta>6) canaleta=0;
+    Serial.println(canaleta);
+    input = NADA;
+    return;
+  }else if(input == NADA){
+    return;
+  }
+
+  Serial.println(canaleta);
+  EstadoJogo estadoJogo = FazJogada(tabuleiro,jogador, canaleta);
 
   if(estadoJogo == FIM_DE_JOGO){
     char envio[] = {'F', jogador, '\0'};
@@ -121,7 +171,7 @@ void loop(){
   if(jogador==JOGADOR1) jogador=JOGADOR2;
   else jogador=JOGADOR1;
   // Serial.println("CORINTHIANS");
-  
+  input = NADA;
 }
 
 
@@ -198,6 +248,20 @@ void ReconectarBroker() {
 
 // LIGUE 4
 
+
+void botaoEsquerda(Button2& b){
+  input = MOV_DIREITA;
+}
+
+void botaoDireita(Button2& b){
+  input = MOV_ESQUERDA;
+}
+
+void botaoJogada(Button2& b){
+  input = JOGADA;
+  Serial.println("dwadd");
+}
+
 void InicializaTabuleiro(char tabuleiro[MAXLIN][MAXCOL]){
 
   int i,j;
@@ -257,7 +321,7 @@ EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL],char jogador, int coluna){
 
     if(GanhouJogo(tabuleiro,coluna)){
       return FIM_DE_JOGO;
-    }else return JOGADA;
+    }else return JOGANDO;
 
 }
 
