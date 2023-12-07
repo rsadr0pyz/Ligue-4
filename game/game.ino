@@ -121,7 +121,7 @@ void setup(){
 
 
 void loop(){
-  delay(2000);
+
 
   if (!client.connected()) {
      ReconectarBroker();
@@ -139,18 +139,29 @@ void loop(){
     if(canaleta<0) canaleta=6;
     Serial.println(canaleta);
     input = NADA;
+      char envioColuna[3];
+    envioColuna[0] = 'C';
+    envioColuna[1] = canaleta + '0';
+    envioColuna[2] = '\0';
+    client.publish(TOPICO_JOGO, envioColuna);
     return;
   }else if(input == MOV_DIREITA){
     canaleta++;
     if(canaleta>6) canaleta=0;
     Serial.println(canaleta);
     input = NADA;
+      char envioColuna[3];
+    envioColuna[0] = 'C';
+    envioColuna[1] = canaleta + '0';
+    envioColuna[2] = '\0';
+    client.publish(TOPICO_JOGO, envioColuna);
     return;
   }else if(input == NADA){
     return;
   }
 
   Serial.println(canaleta);
+
   EstadoJogo estadoJogo = FazJogada(tabuleiro,jogador, canaleta);
 
   if(estadoJogo == FIM_DE_JOGO){

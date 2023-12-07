@@ -16,6 +16,7 @@ for i in range(7):
   l.grid(column=i, row=0)
   indicadores.append(l)
 
+indic_atual = -1
 
 canvasFrame = Frame(root)
 canvasFrame.grid(column=0, row=2)
@@ -82,7 +83,12 @@ def on_message(client, userdata, msg):
     l = Label(logFrame, text = "Jogador "+cor+" venceu!!")
     l.config(font =("Comic Sans", 14))
     l.grid(column= 0, row=0)
- 
+  
+  elif(tipo == 'C'):
+    cob = int(data[1])
+    for i in range(7):
+      indicadores[i].config(bg='gray')
+    indicadores[cob].config(bg='blue')
 
     
 
