@@ -1,21 +1,4 @@
-/* void loop() {
-  if (!client.connected()) {
-     Reconectar();
-  }
-  client.loop();
-
-  long now = millis();
-  if (now - lastMsg > 5000) {
-    lastMsg = now;
-    value = random(20,50);
-    snprintf (msg, 50, "%ld", value);
-    Serial.print("Publish message: ");
-    Serial.println(msg);
-    client.publish("Ligue4PIC", msg);
-  }
-} */
-
-// HARDWARE
+// HARDWAREFIM
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <stdio.h>
@@ -57,7 +40,9 @@ void ReconectarBroker();
 
 typedef enum{
   JOGANDO = 0,
-  FIM_DE_JOGO = 1
+  FIM_DE_JOGO = 1,
+  EMPATE = 2,
+  JOGADA_INVALIDA = 3
 }EstadoJogo;
 
 typedef enum{
@@ -77,8 +62,8 @@ TipoInput input = NADA;
 void InicializaTabuleiro(char [MAXLIN][MAXCOL]);
 void ImprimeTabuleiro(char [MAXLIN][MAXCOL]);
 int JogadaValida(char [MAXLIN][MAXCOL], int col);
-void InsereJogada(char [MAXLIN][MAXCOL], int col, char jogador);
-EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL],char jogador, int coluna);
+int InsereJogada(char [MAXLIN][MAXCOL], int col, char jogador);
+EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL], int coluna);
 int GanhouJogo(char [MAXLIN][MAXCOL], int);
 int QuantosNaDirecao(char [MAXLIN][MAXCOL], int, int, int, int, char);
 void botaoEsquerda(Button2& b);
@@ -132,17 +117,13 @@ void loop(){
   b2.loop();
   b3.loop();
 
-  
 
   if(input == MOV_ESQUERDA){
     canaleta--;
     if(canaleta<0) canaleta=6;
     Serial.println(canaleta);
     input = NADA;
-      char envioColuna[3];
-    envioColuna[0] = 'C';
-    envioColuna[1] = canaleta + '0';
-    envioColuna[2] = '\0';
+    char envioColuna[] = {'C', canaleta + '0', jogador, '\0'}; 
     client.publish(TOPICO_JOGO, envioColuna);
     return;
   }else if(input == MOV_DIREITA){
@@ -150,10 +131,7 @@ void loop(){
     if(canaleta>6) canaleta=0;
     Serial.println(canaleta);
     input = NADA;
-      char envioColuna[3];
-    envioColuna[0] = 'C';
-    envioColuna[1] = canaleta + '0';
-    envioColuna[2] = '\0';
+    char envioColuna[] = {'C', canaleta + '0', jogador, '\0'}; 
     client.publish(TOPICO_JOGO, envioColuna);
     return;
   }else if(input == NADA){
@@ -162,7 +140,7 @@ void loop(){
 
   Serial.println(canaleta);
 
-  EstadoJogo estadoJogo = FazJogada(tabuleiro,jogador, canaleta);
+  EstadoJogo estadoJogo = FazJogada(tabuleiro, canaleta);
 
   if(estadoJogo == FIM_DE_JOGO){
     char envio[] = {'F', jogador, '\0'};
@@ -171,16 +149,25 @@ void loop(){
     Serial.print(jogador);
     Serial.println(" VENCEU");
     client.publish(TOPICO_JOGO, envio);
-    delay(10000);
+    delay(7500);
+    client.publish(TOPICO_JOGO, "L");
+
     InicializaTabuleiro(tabuleiro);
+    char envioColuna[] = {'C', canaleta + '0', jogador, '\0'}; 
+    client.publish(TOPICO_JOGO, envioColuna);
   }
-  else if(!nJogadas){
+  if(estadoJogo==EMPATE){
+    client.publish(TOPICO_JOGO, "F-");
     Serial.print("EMPATE!");
-    delay(10000);
+    delay(7500);
+    client.publish(TOPICO_JOGO, "L");
+
+    InicializaTabuleiro(tabuleiro);
+    char envioColuna[] = {'C', canaleta + '0', jogador, '\0'}; 
+    client.publish(TOPICO_JOGO, envioColuna);
   }
 
-  if(jogador==JOGADOR1) jogador=JOGADOR2;
-  else jogador=JOGADOR1;
+
   // Serial.println("CORINTHIANS");
   input = NADA;
 }
@@ -270,17 +257,18 @@ void botaoDireita(Button2& b){
 
 void botaoJogada(Button2& b){
   input = JOGADA;
-  Serial.println("dwadd");
 }
 
 void InicializaTabuleiro(char tabuleiro[MAXLIN][MAXCOL]){
 
   int i,j;
+  nJogadas = MAXLIN * MAXCOL;
   for(i=0;i<MAXLIN;i++){
     for(j=0;j<MAXCOL;j++){
         tabuleiro[i][j]=VAZIO;
     }
   }
+  canaleta = CANALETA_INICIAL;
 
 }
 
@@ -309,30 +297,48 @@ int JogadaValida(char tabuleiro[MAXLIN][MAXCOL],int col){
 }
 
 
-void InsereJogada(char tabuleiro[MAXLIN][MAXCOL],int col,char jogador){
+int InsereJogada(char tabuleiro[MAXLIN][MAXCOL],int col,char jogador){
 
     int i,j;
     for(i=MAXLIN-1;i>=0;i--){
         if(tabuleiro[i][col]==VAZIO){
             tabuleiro[i][col]=jogador;
-            break;
+            return 1;
         }
     }
-
+    return 0;
 }
 
 
-EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL],char jogador, int coluna){
-    EnviaDados(jogador, tabuleiro, coluna);
+EstadoJogo FazJogada(char tabuleiro[MAXLIN][MAXCOL], int coluna){
 
-    nJogadas--;
-    InsereJogada(tabuleiro,coluna,jogador);
+    if(JogadaValida(tabuleiro, coluna)){  
+      nJogadas--;
 
-    ImprimeTabuleiro(tabuleiro);
+      EnviaDados(jogador, tabuleiro, coluna);
 
-    if(GanhouJogo(tabuleiro,coluna)){
-      return FIM_DE_JOGO;
-    }else return JOGANDO;
+      InsereJogada(tabuleiro,coluna,jogador);
+      ImprimeTabuleiro(tabuleiro);
+
+      if(GanhouJogo(tabuleiro,coluna)){
+        return FIM_DE_JOGO;
+      }
+      else if(!nJogadas){
+        if(jogador==JOGADOR1) jogador=JOGADOR2;
+        else jogador=JOGADOR1;
+        return EMPATE;
+      }
+      else{
+        if(jogador==JOGADOR1) jogador=JOGADOR2;
+        else jogador=JOGADOR1;
+        return JOGANDO;
+      }
+
+    }else{
+      return JOGADA_INVALIDA;
+    }
+
+
 
 }
 

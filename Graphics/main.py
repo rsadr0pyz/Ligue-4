@@ -25,6 +25,9 @@ canv.grid(column=0, row=0)
 
 animator = Animator(canv, root)
 
+lab = Label(logFrame,text="Ligue-4", font =("Comic Sans", 14))
+lab.grid(row=0, column=0)
+
 
 def thread_function(name):
   client.loop_forever()
@@ -39,6 +42,7 @@ def on_message(client, userdata, msg):
   nmbCol = 7
   nbmLin = 6
   if (tipo == 'J'):
+
     i = 1
     while (data[i] != ';'):
       actCol = (i - 1) % nmbCol
@@ -59,6 +63,7 @@ def on_message(client, userdata, msg):
     actualPlayer = SlotStates.EMPTY
     actualPlayerData = data[i + 1]
     
+
     if (actualPlayerData == 'X'):
       actualPlayer = SlotStates.P1
     elif (actualPlayerData == 'O'):
@@ -72,27 +77,59 @@ def on_message(client, userdata, msg):
         endY = i
         break
     animator.animatePlacement(col, endY, 600, actualPlayer)
+
+    fill = ""
+
+    if actualPlayer == SlotStates.P1:
+      fill = "blue"
+    else:
+      fill = "red"
     
+    for i in range(7):
+      indicadores[i].config(bg='gray')
+    indicadores[col].config(bg= fill)
+
   elif(tipo == 'F'):
     jogador = data[1] 
     #T = Text(root=root, bg="grey", fg="black")
-    cor = "vermelho"
-    if (jogador == 'O'):
-      cor = "azul"
+    if (jogador == '-'):
       
-    l = Label(logFrame, text = "Jogador "+cor+" venceu!!")
-    l.config(font =("Comic Sans", 14))
-    l.grid(column= 0, row=0)
+      lab.config(font =("Comic Sans", 14), text="EMPATE!! COMO?") # nao tem comic sans >:(
+      lab.grid(column= 0, row=0)
+    else:
+      cor = "vermelho"
+      if (jogador == 'O'):
+        cor = "azul"
+      
+      #lab = Label(logFrame, text = "Jogador "+cor+" venceu!!")
+      lab.config(font =("Comic Sans", 14), text = "Jogador "+cor+" venceu!!")
+      lab.grid(column= 0, row=0)
   
   elif(tipo == 'C'):
     cob = int(data[1])
+    c = data[2]
+
+
+    fill = ""
+    if c == 'O':
+      fill = "blue"
+    else:
+      fill = "red"
+    
+    print(fill)
     for i in range(7):
       indicadores[i].config(bg='gray')
-    indicadores[cob].config(bg='blue')
+    indicadores[cob].config(bg=fill)
+  
+  elif(tipo == 'L'):
+    #lab = Label(logFrame, text = "")
+    lab.config(font =("Comic Sans", 14), text="Ligue-4")
+    canv.delete('all')
 
-    
+    #lab.grid(column= 0, row=0)
 
-    
+
+
 
 
 def on_connect(client, userdata, flags, rc):
